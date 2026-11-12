@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Secular+One&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #131d29; --card: #1d2a38; --ink: #f3e7cf; --muted: #9db0bf; --line: #2d3e50;
+    --accent: #e8743b; --accent-ink: #fff8ee; --gold: #f2b544; --ok: #74c493; --lent: #f2b544;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Rubik, system-ui, Arial, sans-serif; color: var(--ink); font-size: 16px; min-height: 100vh;
+    background:
+      radial-gradient(1.5px 1.5px at 12% 18%, #fff8 50%, transparent 51%),
+      radial-gradient(1px 1px at 33% 8%, #fff7 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 72% 14%, #fff9 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 30%, #fff6 50%, transparent 51%),
+      radial-gradient(1px 1px at 55% 26%, #fff5 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 40%, #fff4 50%, transparent 51%),
+      radial-gradient(ellipse at 50% 120%, #3a2216 0%, transparent 60%),
+      linear-gradient(#0e1620, var(--bg) 40%);
+    background-attachment: fixed; }
+  header { position: sticky; top: 0; background: #0f1822ee; backdrop-filter: blur(6px); padding: 12px 16px 10px; z-index: 5; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .brand svg { width: 58px; height: 52px; flex-shrink: 0; filter: drop-shadow(0 0 10px #3fa89a44); }
+  h1 { margin: 0; font-family: "Secular One", Rubik, sans-serif; font-weight: 400; font-size: 26px; color: var(--gold); letter-spacing: .5px; }
+  .tagline { font-size: 13px; color: var(--muted); }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab { flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: inherit; font-size: 15px; color: var(--ink); }
+  .tab.on { background: linear-gradient(135deg, var(--accent), #c9502a); color: var(--accent-ink); border-color: transparent; }
+  input, select, textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: #0f1822; color: var(--ink); }
+  input::placeholder { color: #6f8293; }
+  input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  main { padding: 12px 16px 110px; }
+  .book { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; margin-bottom: 8px; cursor: pointer; }
+  .book:active { border-color: var(--accent); }
+  .cover { width: 44px; height: 64px; border-radius: 4px; object-fit: cover; background: #2a3a4b; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 2px 6px #0006; }
+  .info { flex: 1; min-width: 0; }
+  .title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .sub b { color: var(--gold); font-weight: 500; }
+  .badge { font-size: 13px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge.lent { background: #f2b5441f; color: var(--lent); border: 1px solid #f2b54455; }
+  .badge.home { background: #74c4931a; color: var(--ok); border: 1px solid #74c49344; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 10px; line-height: 1.7; }
+  .fab-row { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 10px; padding: 12px 16px 18px; background: linear-gradient(transparent, var(--bg) 35%); }
+  .btn { border: none; border-radius: 12px; padding: 13px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), #c9502a); color: var(--accent-ink); flex: 2; box-shadow: 0 4px 14px #e8743b44; }
+  .btn.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); flex: 1; }
+  .btn.ok { background: #3f8f60; color: #fff; }
+  .btn.danger { background: none; color: #ff8a7a; padding: 10px; font-weight: 400; }
+  .btn.wide { width: 100%; margin-top: 8px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: flex-end; z-index: 20; }
+  .overlay.show { display: flex; }
+  .sheet { background: var(--bg); width: 100%; max-height: 92vh; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 18px 16px 24px; border-top: 2px solid var(--accent); }
+  .sheet h2 { margin: 0 0 12px; font-size: 19px; color: var(--gold); }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .detail-head { display: flex; gap: 14px; margin-bottom: 14px; }
+  .detail-head .cover { width: 70px; height: 100px; }
+  .status { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  .status b { color: var(--gold); }
+  .hist { font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
+  .hist b { color: var(--ink); }
+  .hist div { padding: 3px 0; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 200px; }
+  .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #2a1a08; font-weight: 500; padding: 10px 16px; border-radius: 10px; z-index: 50; display: none; max-width: 90%; text-align: center; }
+  .loading { opacity: .5; pointer-events: none; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><svg viewBox="0 0 120 108" aria-hidden="true">
+  <!-- book pile -->
+  <rect x="18" y="86" width="84" height="12" rx="2" fill="#7a4fb0"/><rect x="18" y="86" width="84" height="3" fill="#9a72cf"/>
+  <rect x="26" y="75" width="70" height="11" rx="2" fill="#3b6fb3"/><rect x="26" y="75" width="70" height="3" fill="#5b8fd3"/>
+  <rect x="22" y="65" width="62" height="10" rx="2" fill="#c0473a"/><rect x="22" y="65" width="62" height="3" fill="#e0675a"/>
+  <!-- tail -->
+  <path d="M86 62 C104 62 110 48 102 40 C98 36 92 40 96 44" fill="none" stroke="#2f8a7e" stroke-width="6" stroke-linecap="round"/>
+  <path d="M94 40 l6 -6 l1 8 z" fill="#f2b544"/>
+  <!-- wing -->
+  <path d="M62 34 C70 12 92 10 98 20 C90 20 88 26 92 30 C84 28 80 34 84 38 C76 36 70 40 66 44 z" fill="#246b63"/>
+  <!-- body -->
+  <ellipse cx="62" cy="50" rx="25" ry="17" fill="#3fa89a"/>
+  <ellipse cx="60" cy="55" rx="15" ry="10" fill="#c7ecd9"/>
+  <!-- feet -->
+  <ellipse cx="48" cy="64" rx="7" ry="4" fill="#2f8a7e"/><ellipse cx="74" cy="64" rx="7" ry="4" fill="#2f8a7e"/>
+  <!-- head -->
+  <circle cx="36" cy="34" r="17" fill="#3fa89a"/>
+  <ellipse cx="25" cy="40" rx="9" ry="7" fill="#5cc0b1"/>
+  <circle cx="21" cy="38" r="1.3" fill="#173f3a"/>
+  <path d="M38 19 l3 -11 l5 12 z" fill="#f2b544"/><path d="M47 23 l7 -8 l1 11 z" fill="#f2b544"/>
+  <!-- eye: sleepy, content -->
+  <path d="M33 31 q5 -5 10 0" fill="none" stroke="#173f3a" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="29" cy="38" r="2.6" fill="#f08a6a" opacity=".6"/>
+  <!-- tiny smoke puff -->
+  <circle cx="12" cy="30" r="3" fill="#9db0bf" opacity=".5"/><circle cx="7" cy="24" r="2" fill="#9db0bf" opacity=".35"/>
+</svg><div><h1>מאורת הספרים</h1><div class="tagline">כל אוצר במקומו, כל ספר אצל מי שצריך</div></div></div>
+  <div class="tabs">
+    <button class="tab on" data-tab="lent">מושאלים (<span id="cntLent">0</span>)</button>
+    <button class="tab" data-tab="all">כל הספרים (<span id="cntAll">0</span>)</button>
+  </div>
+  <input id="search" type="search" placeholder="חיפוש לפי ספר, מחבר או שואל/ת">
+</header>
+
+<main id="list"><div class="empty">טוען…</div></main>
+
+<div class="fab-row">
+  <button class="btn primary" id="btnScan">📷 סריקת ברקוד</button>
+  <button class="btn secondary" id="btnAdd" style="white-space:nowrap">+ הוספה</button>
+</div>
+
+<!-- Scanner -->
+<div class="overlay" id="ovScan">
+  <div class="sheet">
+    <h2>סריקת ברקוד</h2>
+    <div id="reader"></div>
+    <div class="hint">כווני את המצלמה לברקוד שבגב הספר.</div>
+    <label class="btn secondary wide" style="display:block;text-align:center">
+      📸 לצלם תמונה במקום
+      <input type="file" accept="image/*" capture="environment" id="scanFile" hidden>
+    </label>
+    <div class="row" style="margin-top:8px">
+      <input id="manualCode" inputmode="numeric" placeholder="או להקליד מספר ברקוד">
+      <button class="btn secondary" id="btnManualCode" style="flex:0 0 auto">המשך</button>
+    </div>
+    <button class="btn secondary wide" id="btnCloseScan">ביטול</button>
+  </div>
+</div>
+
+<!-- Book form -->
+<div class="overlay" id="ovForm">
+  <div class="sheet">
+    <h2 id="formTitle">ספר חדש</h2>
+    <div class="hint" id="formHint"></div>
+    <input type="hidden" id="fId">
+    <div class="field"><label>שם הספר *</label><input id="fTitle"></div>
+    <div class="field"><label>מחבר/ת</label><input id="fAuthor"></div>
+    <div class="row">
+      <div class="field"><label>שפה</label>
+        <select id="fLang"><option>עברית</option><option>אנגלית</option><option>אחר</option></select></div>
+      <div class="field"><label>ברקוד/ISBN</label><input id="fCode" inputmode="numeric"></div>
+    </div>
+    <div class="field"><label>הערות</label><input id="fNotes"></div>
+    <input type="hidden" id="fCover">
+    <div class="field" id="lendNowWrap"><label>להשאיל עכשיו ל… (לא חובה)</label>
+      <input id="fLendTo" list="borrowers" placeholder="שם השואל/ת"></div>
+    <button class="btn primary wide" id="btnSave">שמירה</button>
+    <button class="btn secondary wide" id="btnSaveNext">שמירה וסריקת הספר הבא 📷</button>
+    <button class="btn secondary wide" data-close>ביטול</button>
+  </div>
+</div>
+
+<!-- Book detail -->
+<div class="overlay" id="ovDetail">
+  <div class="sheet" id="detailBody"></div>
+</div>
+
+<datalist id="borrowers"></datalist>
+<div class="toast" id="toast"></div>
+
+<script>
+let DATA = { books: [], loans: [] };
+let tab = 'lent';
+let scanner = null;
+
+// ---------- server calls ----------
+// In the Android app, window.Android is a native bridge; in the browser we use google.script.run.
+const IS_APP = !!window.Android;
+const _pending = {}; let _cid = 0;
+window.__native = (id, ok, payload) => {
+  const p = _pending[id]; delete _pending[id]; if (!p) return;
+  ok ? p.resolve(payload ? JSON.parse(payload) : null) : p.reject(new Error(payload || 'בוטל'));
+};
+function nativeCall(method, ...args) {
+  return new Promise((resolve, reject) => { const id = ++_cid; _pending[id] = { resolve, reject }; Android[method](id, ...args); });
+}
+function call(fn, ...args) {
+  if (IS_APP) return nativeCall('api', fn, JSON.stringify(args));
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(e))[fn](...args);
+  });
+}
+function openExternal(url) { IS_APP ? Android.openUrl(url) : window.open(url, '_blank'); }
+
+// Offline cache: last loaded data is kept on the device.
+function saveCache(d) { try { localStorage.setItem('booksCache', JSON.stringify(d)); } catch (e) {} }
+function loadCache() { try { return JSON.parse(localStorage.getItem('booksCache')); } catch (e) { return null; } }
+
+async function refresh() {
+  try {
+    DATA = await call('getData');
+    saveCache(DATA);
+  } catch (e) {
+    const c = loadCache();
+    if (!c) throw e;
+    DATA = c;
+    toast('אין חיבור. מוצגים הנתונים האחרונים שנשמרו.', 4000);
+  }
+  render();
+}
+function toast(msg, ms = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', ms);
+}
+function err(e) { toast('שגיאה: ' + (e && e.message ? e.message : e), 4000); }
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function openLoan(bookId) { return DATA.loans.find(l => l.bookId === bookId && !l.returnDate); }
+function fmt(d) { if (!d) return ''; const [y, m, day] = d.split('-'); return `${+day}.${+m}.${y.slice(2)}`; }
+function daysSince(d) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
+function coverHtml(b, cls = 'cover') {
+  return b.cover ? `<img class="${cls}" src="${esc(b.cover)}" onerror="this.outerHTML='<div class=&quot;${cls}&quot;>📙</div>'">` : `<div class="${cls}">📙</div>`;
+}
+function show(id) { $(id).classList.add('show'); }
+function hide(id) { $(id).classList.remove('show'); }
+document.querySelectorAll('.overlay').forEach(ov => ov.addEventListener('click', e => {
+  if (e.target === ov || e.target.hasAttribute('data-close')) { if (ov.id === 'ovScan') stopScan(); hide(ov.id); }
+}));
+
+// ---------- list ----------
+function render() {
+  const q = $('search').value.trim().toLowerCase();
+  const lentIds = new Set(DATA.loans.filter(l => !l.returnDate).map(l => l.bookId));
+  $('cntLent').textContent = lentIds.size;
+  $('cntAll').textContent = DATA.books.length;
+
+  // borrower suggestions: unique names, most recent first
+  const names = [...new Set(DATA.loans.slice().reverse().map(l => l.borrower))];
+  $('borrowers').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+
+  let books = DATA.books.map(b => ({ ...b, loan: openLoan(b.id) }));
+  if (tab === 'lent') books = books.filter(b => b.loan).sort((a, b) => a.loan.loanDate.localeCompare(b.loan.loanDate));
+  else books.sort((a, b) => String(a.title).localeCompare(String(b.title), 'he'));
+  if (q) books = books.filter(b => [b.title, b.author, b.code, b.loan && b.loan.borrower].some(v => String(v || '').toLowerCase().includes(q)));
+
+  if (!books.length) {
+    $('list').innerHTML = `<div class="empty">${q ? 'לא נמצאו ספרים' :
+      tab === 'lent' ? 'כל האוצר שמור במאורה 🐉<br>להשאלה: סרקי ספר או בחרי מ"כל הספרים"' :
+      'המאורה עוד ריקה.<br>סרקי ברקוד או הוסיפי ספר ראשון לאוצר.'}</div>`;
+    return;
+  }
+  $('list').innerHTML = books.map(b => `
+    <div class="book" data-id="${esc(b.id)}">
+      ${coverHtml(b)}
+      <div class="info">
+        <div class="title">${esc(b.title)}</div>
+        <div class="sub">${b.loan ? `אצל <b>${esc(b.loan.borrower)}</b> · ${daysSince(b.loan.loanDate)} ימים` : esc(b.author || '')}</div>
+      </div>
+      <span class="badge ${b.loan ? 'lent' : 'home'}">${b.loan ? 'מושאל' : 'במאורה'}</span>
+    </div>`).join('');
+}
+$('list').addEventListener('click', e => { const el = e.target.closest('.book'); if (el) openDetail(el.dataset.id); });
+$('search').addEventListener('input', render);
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on'); tab = t.dataset.tab; render();
+}));
+
+// ---------- detail ----------
+function openDetail(id) {
+  const b = DATA.books.find(x => x.id === id); if (!b) return;
+  const loan = openLoan(id);
+  const hist = DATA.loans.filter(l => l.bookId === id && l.returnDate).reverse();
+  $('detailBody').innerHTML = `
+    <div class="detail-head">
+      ${coverHtml(b)}
+      <div><h2 style="margin:0 0 4px">${esc(b.title)}</h2>
+        <div class="sub">${esc(b.author || '')}</div>
+        <div class="sub">${esc(b.lang || '')}${b.code ? ' · ' + esc(b.code) : ''}</div>
+        ${b.notes ? `<div class="sub">📝 ${esc(b.notes)}</div>` : ''}
+      </div>
+    </div>
+    <div class="status">
+      ${loan ? `
+        <div>📖 אצל <b>${esc(loan.borrower)}</b> מאז ${fmt(loan.loanDate)} (${daysSince(loan.loanDate)} ימים)</div>
+        <button class="btn ok wide" id="dReturn">✓ הספר הוחזר</button>
+        <button class="btn secondary wide" id="dRemind">💬 תזכורת בוואטסאפ</button>
+      ` : `
+        <div style="margin-bottom:8px">🐉 הספר במאורה</div>
+        <div class="row">
+          <input id="dBorrower" list="borrowers" placeholder="למי להשאיל?">
+          <button class="btn primary" id="dLend" style="flex:0 0 auto">השאלה</button>
+        </div>
+      `}
+      ${hist.length ? `<div class="hist"><b>היסטוריה</b>${hist.map(l => `<div>${esc(l.borrower)} · ${fmt(l.loanDate)} – ${fmt(l.returnDate)}</div>`).join('')}</div>` : ''}
+    </div>
+    <div class="row">
+      <button class="btn secondary" id="dEdit">✏️ עריכה</button>
+      <button class="btn secondary" id="dGoodreads">📗 Goodreads</button>
+    </div>
+    <button class="btn secondary wide" data-close>סגירה</button>
+    <button class="btn danger wide" id="dDelete">מחיקת הספר</button>
+  `;
+  show('ovDetail');
+
+  const busy = on => $('detailBody').classList.toggle('loading', on);
+  if (loan) {
+    $('dReturn').onclick = async () => { busy(true); try { await call('returnBook', id); hide('ovDetail'); toast('סומן כהוחזר ✓'); await refresh(); } catch (e) { err(e); } busy(false); };
+    $('dRemind').onclick = () => {
+      const msg = `היי ${loan.borrower} 🙂 רק מזכירה שהספר "${b.title}" אצלך. מתי נוח לך להחזיר?`;
+      openExternal('https://wa.me/?text=' + encodeURIComponent(msg));
+    };
+  } else {
+    $('dLend').onclick = async () => {
+      const name = $('dBorrower').value.trim(); if (!name) return toast('צריך לכתוב שם');
+      busy(true); try { await call('lendBook', id, name); hide('ovDetail'); toast(`הושאל ל${name} ✓`); await refresh(); } catch (e) { err(e); } busy(false);
+    };
+  }
+  $('dEdit').onclick = () => { hide('ovDetail'); openForm(b); };
+  $('dGoodreads').onclick = () => {
+    const isIsbn = /^(97[89]\d{10}|\d{9}[\dX])$/i.test(String(b.code || ''));
+    const q = isIsbn ? b.code : [b.title, b.author].filter(Boolean).join(' ');
+    openExternal('https://www.goodreads.com/search?q=' + encodeURIComponent(q));
+  };
+  $('dDelete').onclick = async () => {
+    if (!confirm(`למחוק את "${b.title}"?`)) return;
+    busy(true); try { await call('deleteBook', id); hide('ovDetail'); toast('נמחק'); await refresh(); } catch (e) { err(e); } busy(false);
+  };
+}
+
+// ---------- form ----------
+function openForm(b = {}, hint = '') {
+  $('formTitle').textContent = b.id ? 'עריכת ספר' : 'ספר חדש';
+  $('formHint').textContent = hint;
+  $('fId').value = b.id || '';
+  $('fTitle').value = b.title || '';
+  $('fAuthor').value = b.author || '';
+  $('fLang').value = b.lang || 'עברית';
+  $('fCode').value = b.code || '';
+  $('fNotes').value = b.notes || '';
+  $('fCover').value = b.cover || '';
+  $('fLendTo').value = '';
+  $('lendNowWrap').style.display = b.id ? 'none' : '';
+  $('btnSaveNext').style.display = b.id ? 'none' : '';
+  show('ovForm');
+  if (!b.title) setTimeout(() => $('fTitle').focus(), 100);
+}
+$('btnAdd').onclick = () => openForm();
+$('btnSave').onclick = () => saveForm(false);
+$('btnSaveNext').onclick = () => saveForm(true);
+async function saveForm(scanNext) {
+  const book = { id: $('fId').value, title: $('fTitle').value.trim(), author: $('fAuthor').value.trim(),
+    lang: $('fLang').value, code: $('fCode').value.trim(), notes: $('fNotes').value.trim(), cover: $('fCover').value };
+  if (!book.title) return toast('חסר שם ספר');
+  const lendTo = $('fLendTo').value.trim();
+  const sheet = $('ovForm').querySelector('.sheet');
+  sheet.classList.add('loading');
+  try {
+    const id = await call('saveBook', book);
+    if (lendTo && !book.id) await call('lendBook', id, lendTo);
+    hide('ovForm');
+    toast(lendTo && !book.id ? `נשמר והושאל ל${lendTo} ✓` : 'נשמר ✓');
+    sheet.classList.remove('loading');
+    if (scanNext) startScan();
+    await refresh();
+  } catch (e) { err(e); }
+  sheet.classList.remove('loading');
+}
+
+// ---------- scanning ----------
+const FORMATS = () => typeof Html5QrcodeSupportedFormats === 'undefined' ? [] : [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.CODE_128];
+
+$('btnScan').onclick = () => startScan();
+async function startScan() {
+  if (IS_APP) {
+    try { handleCode(await nativeCall('scan')); } catch (e) { /* בוטל */ }
+    return;
+  }
+  $('manualCode').value = '';
+  show('ovScan');
+  try {
+    scanner = new Html5Qrcode('reader', { formatsToSupport: FORMATS(), verbose: false });
+    await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 260, height: 130 } },
+      code => { stopScan(); hide('ovScan'); handleCode(code); });
+  } catch (e) {
+    $('reader').innerHTML = '<div class="empty" style="color:#ccc">לא הצלחתי לפתוח את המצלמה כאן.<br>אפשר לצלם תמונה או להקליד את המספר.</div>';
+  }
+}
+async function stopScan() {
+  if (scanner) { try { if (scanner.isScanning) await scanner.stop(); scanner.clear(); } catch (e) {} scanner = null; }
+}
+$('btnCloseScan').onclick = () => { stopScan(); hide('ovScan'); };
+$('btnManualCode').onclick = () => { const c = $('manualCode').value.trim(); if (!c) return; stopScan(); hide('ovScan'); handleCode(c); };
+$('scanFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  await stopScan();
+  try {
+    const reader = new Html5Qrcode('reader', { formatsToSupport: FORMATS(), verbose: false });
+    const code = await reader.scanFile(file, false);
+    hide('ovScan'); handleCode(code);
+  } catch (er) { toast('לא זוהה ברקוד בתמונה. נסי שוב קרוב יותר ועם תאורה טובה.', 4000); }
+  e.target.value = '';
+};
+
+async function handleCode(code) {
+  code = String(code).replace(/\s/g, '');
+  const existing = DATA.books.find(b => String(b.code) === code);
+  if (existing) return openDetail(existing.id);
+
+  const isIsbn = /^(97[89]\d{10}|\d{9}[\dX])$/i.test(code);
+  if (!isIsbn) return openForm({ code }, 'זה לא ברקוד ISBN, אז אין חיפוש אוטומטי. מלאי את הפרטים ידנית.');
+
+  toast('מחפש פרטי ספר…', 15000);
+  const log = [];
+  const info = await lookupClient(code, log) || await lookupServer(code, log);
+  $('toast').style.display = 'none';
+  if (info) openForm({ code, ...info }, 'הפרטים נמצאו אוטומטית. אפשר לתקן לפני השמירה.');
+  else openForm({ code }, `לא נמצאו פרטים עבור ${code}. מלאי ידנית. (${log.join(' · ')})`);
+}
+
+// ---------- ISBN lookup (from the phone itself) ----------
+function langOf(code, title) {
+  if (code === 'he' || code === 'iw' || /[֐-׿]/.test(title || '')) return 'עברית';
+  if (code === 'en' || /^[\x00-\x7F]+$/.test(title || '')) return 'אנגלית';
+  return 'אחר';
+}
+async function getJson(url, ms = 7000) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function lookupClient(isbn, log) {
+  // 1. Google Books
+  for (const q of ['isbn:' + isbn, isbn]) {
+    try {
+      const j = await getJson('https://www.googleapis.com/books/v1/volumes?q=' + encodeURIComponent(q));
+      const item = (j.items || []).find(it => (it.volumeInfo.industryIdentifiers || []).some(x => x.identifier.replace(/-/g, '') === isbn)) || (q.startsWith('isbn:') && j.items && j.items[0]);
+      if (item) {
+        const v = item.volumeInfo;
+        const cover = v.imageLinks ? (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '').replace('http://', 'https://') : '';
+        return { title: v.title + (v.subtitle ? ': ' + v.subtitle : ''), author: (v.authors || []).join(', '), lang: langOf(v.language, v.title), cover };
+      }
+      log.push('Google: אין');
+    } catch (e) { log.push('Google: ' + (e.name === 'AbortError' ? 'timeout' : e.message)); }
+  }
+  // 2. Open Library
+  try {
+    const j = await getJson('https://openlibrary.org/api/books?bibkeys=ISBN:' + isbn + '&format=json&jscmd=data');
+    const b = j['ISBN:' + isbn];
+    if (b) return { title: b.title, author: (b.authors || []).map(a => a.name).join(', '), lang: langOf('', b.title), cover: b.cover ? (b.cover.medium || b.cover.small || '') : '' };
+    log.push('OpenLibrary: אין');
+  } catch (e) { log.push('OpenLibrary: ' + (e.name === 'AbortError' ? 'timeout' : e.message)); }
+  return null;
+}
+async function lookupServer(isbn, log) {
+  try { const r = await call('lookupIsbn', isbn); if (!r) log.push('שרת: אין'); return r; }
+  catch (e) { log.push('שרת: ' + (e.message || e)); return null; }
+}
+
+// Android back button: close the top overlay. Returns true if something was closed.
+window.__back = () => {
+  const open = [...document.querySelectorAll('.overlay.show')].pop();
+  if (!open) return false;
+  if (open.id === 'ovScan') stopScan();
+  hide(open.id); return true;
+};
+// Long-press the title to open the app settings.
+if (IS_APP) {
+  let t; const h1 = document.querySelector('h1');
+  h1.addEventListener('touchstart', () => t = setTimeout(() => Android.openSettings(), 1200));
+  ['touchend', 'touchmove'].forEach(ev => h1.addEventListener(ev, () => clearTimeout(t)));
+}
+const cached = loadCache();
+if (cached) { DATA = cached; render(); }
+refresh().catch(err);
+</script>
+</body>
+</html>
