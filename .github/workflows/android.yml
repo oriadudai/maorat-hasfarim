@@ -32,18 +32,23 @@ jobs:
       - name: Restore signing key
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PW: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            # Strip spaces/newlines that may sneak in when pasting secrets.
+            printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+            PW=$(printf '%s' "$KEYSTORE_PW" | tr -d '[:space:]')
+            echo "::add-mask::$PW"
+            echo "KEYSTORE_PASSWORD=$PW" >> "$GITHUB_ENV"
             echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$PW" > /dev/null \
+              && echo "Keystore OK" || { echo "::error::KEYSTORE_PASSWORD does not match KEYSTORE_B64"; exit 1; }
           else
             echo "::warning::No KEYSTORE_B64 secret - building with a debug key"
           fi
 
       - name: Build APK
         working-directory: android
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: gradle assembleRelease --no-daemon
 
       - name: Publish release
