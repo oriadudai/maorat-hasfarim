@@ -5,7 +5,7 @@
 
 const SHEET_BOOKS = 'ספרים';
 const SHEET_LOANS = 'השאלות';
-const BOOK_HEADERS = ['מזהה', 'ברקוד/ISBN', 'שם', 'מחבר', 'שפה', 'כריכה (קישור)', 'הערות', 'נוסף בתאריך'];
+const BOOK_HEADERS = ['מזהה', 'ברקוד/ISBN', 'שם', 'מחבר', 'שפה', 'כריכה (קישור)', 'הערות', 'נוסף בתאריך', 'מחיר (₪)'];
 const LOAN_HEADERS = ['מזהה השאלה', 'מזהה ספר', 'שם הספר', 'שואל/ת', 'תאריך השאלה', 'תאריך החזרה'];
 
 // ---------- Web app / API ----------
@@ -83,6 +83,10 @@ function getSheet_(name, headers) {
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, headers.length).setFontWeight('bold');
     sh.setRightToLeft(true);
+  } else if (sh.getLastColumn() < headers.length) {
+    // Sheet from an older version: add the new header columns (e.g. price).
+    const n = sh.getLastColumn();
+    sh.getRange(1, n + 1, 1, headers.length - n).setValues([headers.slice(n)]).setFontWeight('bold');
   }
   return sh;
 }
@@ -97,6 +101,14 @@ function fmtDate_(d) {
   if (!d) return '';
   if (!(d instanceof Date)) d = new Date(d);
   return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/** Price as a number, or '' when empty/invalid. */
+function price_(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  const t = String(v).replace(/[^0-9.]/g, '');
+  const n = Number(t);
+  return t && isFinite(n) ? n : '';
 }
 
 function newId_() {
@@ -121,7 +133,7 @@ function setup() {
 function getData() {
   const books = rows_(getSheet_(SHEET_BOOKS, BOOK_HEADERS)).map(r => ({
     id: String(r[0]), code: String(r[1]), title: r[2], author: r[3],
-    lang: r[4], cover: r[5], notes: r[6], added: fmtDate_(r[7])
+    lang: r[4], cover: r[5], notes: r[6], added: fmtDate_(r[7]), price: price_(r[8])
   }));
   const loans = rows_(getSheet_(SHEET_LOANS, LOAN_HEADERS)).map(r => ({
     id: String(r[0]), bookId: String(r[1]), title: r[2], borrower: r[3],
@@ -140,6 +152,7 @@ function saveBook(book) {
       for (let i = 1; i < data.length; i++) {
         if (String(data[i][0]) === book.id) {
           sh.getRange(i + 1, 2, 1, 6).setValues([[code, book.title, book.author, book.lang, book.cover || '', book.notes || '']]);
+          sh.getRange(i + 1, 9).setValue(price_(book.price));
           return book.id;
         }
       }
@@ -152,7 +165,7 @@ function saveBook(book) {
       }
     }
     const id = newId_();
-    sh.appendRow([id, code, book.title, book.author || '', book.lang || '', book.cover || '', book.notes || '', new Date()]);
+    sh.appendRow([id, code, book.title, book.author || '', book.lang || '', book.cover || '', book.notes || '', new Date(), price_(book.price)]);
     // שמירת הברקוד כטקסט (שלא יהפוך למספר מדעי)
     sh.getRange(sh.getLastRow(), 2).setNumberFormat('@').setValue(code);
     return id;

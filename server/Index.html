@@ -72,6 +72,9 @@
   #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 200px; }
   .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #2a1a08; font-weight: 500; padding: 10px 16px; border-radius: 10px; z-index: 50; display: none; max-width: 90%; text-align: center; }
   .loading { opacity: .5; pointer-events: none; }
+  .summary { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; font-size: 15px; }
+  .summary b { color: var(--gold); }
+  .summary span { color: var(--muted); font-size: 13px; }
   .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
 </style>
 </head>
@@ -149,7 +152,10 @@
         <select id="fLang"><option>עברית</option><option>אנגלית</option><option>אחר</option></select></div>
       <div class="field"><label>ברקוד/ISBN</label><input id="fCode" inputmode="numeric"></div>
     </div>
-    <div class="field"><label>הערות</label><input id="fNotes"></div>
+    <div class="row">
+      <div class="field"><label>הערות</label><input id="fNotes"></div>
+      <div class="field" style="flex:0 0 32%"><label>מחיר (₪)</label><input id="fPrice" inputmode="decimal" placeholder="לא חובה"></div>
+    </div>
     <input type="hidden" id="fCover">
     <div class="field" id="lendNowWrap"><label>להשאיל עכשיו ל… (לא חובה)</label>
       <input id="fLendTo" list="borrowers" placeholder="שם השואל/ת"></div>
@@ -219,6 +225,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function openLoan(bookId) { return DATA.loans.find(l => l.bookId === bookId && !l.returnDate); }
 function fmt(d) { if (!d) return ''; const [y, m, day] = d.split('-'); return `${+day}.${+m}.${y.slice(2)}`; }
+function hasPrice(b) { return b.price !== '' && b.price !== null && b.price !== undefined && !isNaN(b.price); }
+function money(n) { return '₪' + Number(n).toLocaleString('he-IL', { maximumFractionDigits: 2 }); }
 function daysSince(d) { return Math.floor((Date.now() - new Date(d).getTime()) / 86400000); }
 function coverHtml(b, cls = 'cover') {
   return b.cover ? `<img class="${cls}" src="${esc(b.cover)}" onerror="this.outerHTML='<div class=&quot;${cls}&quot;>📙</div>'">` : `<div class="${cls}">📙</div>`;
@@ -251,7 +259,14 @@ function render() {
       'המאורה עוד ריקה.<br>סרקי ברקוד או הוסיפי ספר ראשון לאוצר.'}</div>`;
     return;
   }
-  $('list').innerHTML = books.map(b => `
+  let summary = '';
+  if (tab === 'all' && !q && DATA.books.length) {
+    const priced = DATA.books.filter(hasPrice);
+    const total = priced.reduce((s, b) => s + Number(b.price), 0);
+    const missing = DATA.books.length - priced.length;
+    summary = `<div class="summary">💰 שווי המאורה: <b>${money(total)}</b>${missing ? ` <span>(ל-${missing} ספרים אין מחיר)</span>` : ''}</div>`;
+  }
+  $('list').innerHTML = summary + books.map(b => `
     <div class="book" data-id="${esc(b.id)}">
       ${coverHtml(b)}
       <div class="info">
@@ -280,6 +295,7 @@ function openDetail(id) {
         <div class="sub">${esc(b.author || '')}</div>
         <div class="sub">${esc(b.lang || '')}${b.code ? ' · ' + esc(b.code) : ''}</div>
         ${b.notes ? `<div class="sub">📝 ${esc(b.notes)}</div>` : ''}
+        ${hasPrice(b) ? `<div class="sub">💰 ${money(b.price)}</div>` : ''}
       </div>
     </div>
     <div class="status">
@@ -340,6 +356,7 @@ function openForm(b = {}, hint = '') {
   $('fLang').value = b.lang || 'עברית';
   $('fCode').value = b.code || '';
   $('fNotes').value = b.notes || '';
+  $('fPrice').value = b.price === 0 || b.price ? b.price : '';
   $('fCover').value = b.cover || '';
   $('fLendTo').value = '';
   $('lendNowWrap').style.display = b.id ? 'none' : '';
@@ -352,7 +369,7 @@ $('btnSave').onclick = () => saveForm(false);
 $('btnSaveNext').onclick = () => saveForm(true);
 async function saveForm(scanNext) {
   const book = { id: $('fId').value, title: $('fTitle').value.trim(), author: $('fAuthor').value.trim(),
-    lang: $('fLang').value, code: $('fCode').value.trim(), notes: $('fNotes').value.trim(), cover: $('fCover').value };
+    lang: $('fLang').value, code: $('fCode').value.trim(), notes: $('fNotes').value.trim(), price: $('fPrice').value.trim(), cover: $('fCover').value };
   if (!book.title) return toast('חסר שם ספר');
   const lendTo = $('fLendTo').value.trim();
   const sheet = $('ovForm').querySelector('.sheet');
