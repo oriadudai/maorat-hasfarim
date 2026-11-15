@@ -72,6 +72,10 @@
   #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 200px; }
   .toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #2a1a08; font-weight: 500; padding: 10px 16px; border-radius: 10px; z-index: 50; display: none; max-width: 90%; text-align: center; }
   .loading { opacity: .5; pointer-events: none; }
+  .find-item { display: flex; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; background: var(--card); cursor: pointer; }
+  .find-item:active { border-color: var(--accent); }
+  .find-item .cover { width: 34px; height: 50px; font-size: 18px; }
+  .find-msg { font-size: 13px; color: var(--muted); margin-top: 6px; }
   .summary { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; font-size: 15px; }
   .summary b { color: var(--gold); }
   .summary span { color: var(--muted); font-size: 13px; }
@@ -145,7 +149,10 @@
     <h2 id="formTitle">ספר חדש</h2>
     <div class="hint" id="formHint"></div>
     <input type="hidden" id="fId">
-    <div class="field"><label>שם הספר *</label><input id="fTitle"></div>
+    <div class="field"><label>שם הספר *</label>
+      <div class="row"><input id="fTitle"><button class="btn secondary" id="btnFind" style="flex:0 0 auto" title="חיפוש פרטים לפי שם">🔍</button></div>
+      <div id="findResults"></div>
+    </div>
     <div class="field"><label>מחבר/ת</label><input id="fAuthor"></div>
     <div class="row">
       <div class="field"><label>שפה</label>
@@ -356,6 +363,7 @@ function openForm(b = {}, hint = '') {
   $('fLang').value = b.lang || 'עברית';
   $('fCode').value = b.code || '';
   $('fNotes').value = b.notes || '';
+  $('findResults').innerHTML = '';
   $('fPrice').value = b.price === 0 || b.price ? b.price : '';
   $('fCover').value = b.cover || '';
   $('fLendTo').value = '';
@@ -428,17 +436,57 @@ async function handleCode(code) {
   if (existing) return openDetail(existing.id);
 
   const isIsbn = /^(97[89]\d{10}|\d{9}[\dX])$/i.test(code);
-  if (!isIsbn) return openForm({ code }, 'זה לא ברקוד ISBN, אז אין חיפוש אוטומטי. מלאי את הפרטים ידנית.');
+  if (!isIsbn) return openForm({ code }, 'זה לא ברקוד ISBN. כתבי את שם הספר ולחצי 🔍 כדי למצוא את הפרטים.');
 
   toast('מחפש פרטי ספר…', 15000);
   const log = [];
   const info = await lookupClient(code, log) || await lookupServer(code, log);
   $('toast').style.display = 'none';
   if (info) openForm({ code, ...info }, 'הפרטים נמצאו אוטומטית. אפשר לתקן לפני השמירה.');
-  else openForm({ code }, `לא נמצאו פרטים עבור ${code}. מלאי ידנית. (${log.join(' · ')})`);
+  else openForm({ code }, `לא נמצאו פרטים עבור ${code}. כתבי את שם הספר ולחצי 🔍. (${log.join(' · ')})`);
 }
 
 // ---------- ISBN lookup (from the phone itself) ----------
+// ---------- search by title (Google Books) ----------
+let FOUND = [];
+function volToBook(v) {
+  const ids = v.industryIdentifiers || [];
+  const isbn = (ids.find(x => x.type === 'ISBN_13') || ids.find(x => x.type === 'ISBN_10') || {}).identifier || '';
+  const cover = v.imageLinks ? (v.imageLinks.thumbnail || v.imageLinks.smallThumbnail || '').replace('http://', 'https://') : '';
+  return { title: v.title + (v.subtitle ? ': ' + v.subtitle : ''), author: (v.authors || []).join(', '), lang: langOf(v.language, v.title), cover, isbn, year: (v.publishedDate || '').slice(0, 4) };
+}
+$('btnFind').onclick = async () => {
+  const q = $('fTitle').value.trim();
+  if (q.length < 2) return toast('כתבי קודם כמה מילים משם הספר');
+  const box = $('findResults');
+  box.innerHTML = '<div class="find-msg">מחפש…</div>';
+  try {
+    const author = $('fAuthor').value.trim();
+    let j = await getJson('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent('intitle:' + q + (author ? ' inauthor:' + author : '')));
+    if (!j.items) j = await getJson('https://www.googleapis.com/books/v1/volumes?maxResults=8&q=' + encodeURIComponent(q));
+    FOUND = (j.items || []).map(it => volToBook(it.volumeInfo));
+    if (!FOUND.length) { box.innerHTML = '<div class="find-msg">לא נמצאו התאמות. אפשר למלא ידנית.</div>'; return; }
+    box.innerHTML = '<div class="find-msg">בחרי את הספר המתאים:</div>' + FOUND.map((b, i) => `
+      <div class="find-item" data-i="${i}">
+        ${coverHtml(b)}
+        <div class="info"><div class="title">${esc(b.title)}</div>
+          <div class="sub">${esc([b.author, b.year].filter(Boolean).join(' · '))}</div></div>
+      </div>`).join('');
+  } catch (e) {
+    box.innerHTML = '<div class="find-msg">החיפוש נכשל (אין חיבור?). אפשר למלא ידנית.</div>';
+  }
+};
+$('findResults').addEventListener('click', e => {
+  const el = e.target.closest('.find-item'); if (!el) return;
+  const b = FOUND[+el.dataset.i];
+  $('fTitle').value = b.title;
+  if (b.author) $('fAuthor').value = b.author;
+  if (b.lang) $('fLang').value = b.lang;
+  if (b.cover) $('fCover').value = b.cover;
+  if (b.isbn && !$('fCode').value.trim()) $('fCode').value = b.isbn;
+  $('findResults').innerHTML = '<div class="find-msg">✓ הפרטים מולאו. אפשר לתקן לפני השמירה.</div>';
+});
+
 function langOf(code, title) {
   if (code === 'he' || code === 'iw' || /[֐-׿]/.test(title || '')) return 'עברית';
   if (code === 'en' || /^[\x00-\x7F]+$/.test(title || '')) return 'אנגלית';
